@@ -1,0 +1,168 @@
+volumes:
+  shared_data_directory: null
+  rabbitmq_data: null
+  geowebcache_data: null
+  db: null
+services:
+  rabbitmq:
+    image: 'rabbitmq:3.13.3-alpine'
+    user: '1000:1000'
+    restart: unless-stopped
+    volumes:
+      - 'rabbitmq_data:/var/lib/rabbitmq'
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+  discovery:
+    image: 'geoservercloud/geoserver-cloud-discovery:1.8.11'
+    user: '1000:1000'
+    ports:
+      - '8761:8761'
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+  config:
+    image: 'geoservercloud/geoserver-cloud-config:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - discovery
+      - rabbitmq
+    environment:
+      SPRING_PROFILES_ACTIVE: git
+      CONFIG_GIT_URI: 'https://github.com/geoserver/geoserver-cloud-config.git'
+      SPRING_CLOUD_CONFIG_SERVER_GIT_DEFAULT_LABEL: v1.8.11
+      CONFIG_GIT_BASEDIR: /tmp/git_config
+      CONFIG_NATIVE_PATH: /tmp/config
+      XDG_CONFIG_HOME: /tmp
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+  gateway:
+    image: 'geoservercloud/geoserver-cloud-gateway:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - config
+    environment:
+      GEOSERVER_BASE_PATH: /geoserver/cloud
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 1G
+  wfs:
+    image: 'geoservercloud/geoserver-cloud-wfs:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - config
+    environment:
+      SPRING_PROFILES_ACTIVE: datadir
+      GEOSERVER_DATA_DIR: /opt/app/data_directory
+    volumes:
+      - 'shared_data_directory:/opt/app/data_directory'
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+  wms:
+    image: 'geoservercloud/geoserver-cloud-wms:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - config
+    environment:
+      SPRING_PROFILES_ACTIVE: datadir
+      GEOSERVER_DATA_DIR: /opt/app/data_directory
+      GEOWEBCACHE_CACHE_DIR: /data/geowebcache
+    volumes:
+      - 'shared_data_directory:/opt/app/data_directory'
+      - 'geowebcache_data:/data/geowebcache'
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+  wcs:
+    image: 'geoservercloud/geoserver-cloud-wcs:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - config
+    environment:
+      SPRING_PROFILES_ACTIVE: datadir
+      GEOSERVER_DATA_DIR: /opt/app/data_directory
+    volumes:
+      - 'shared_data_directory:/opt/app/data_directory'
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+  rest:
+    image: 'geoservercloud/geoserver-cloud-rest:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - config
+    environment:
+      SPRING_PROFILES_ACTIVE: datadir
+      GEOSERVER_DATA_DIR: /opt/app/data_directory
+    volumes:
+      - 'shared_data_directory:/opt/app/data_directory'
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1G
+  webui:
+    image: 'geoservercloud/geoserver-cloud-webui:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - config
+    environment:
+      SPRING_PROFILES_ACTIVE: datadir
+      GEOSERVER_DATA_DIR: /opt/app/data_directory
+      GEOWEBCACHE_CACHE_DIR: /data/geowebcache
+    volumes:
+      - 'shared_data_directory:/opt/app/data_directory'
+      - 'geowebcache_data:/data/geowebcache'
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+  gwc:
+    image: 'geoservercloud/geoserver-cloud-gwc:1.8.11'
+    user: '1000:1000'
+    depends_on:
+      - config
+    environment:
+      SPRING_PROFILES_ACTIVE: datadir
+      GEOSERVER_DATA_DIR: /opt/app/data_directory
+      GEOWEBCACHE_CACHE_DIR: /data/geowebcache
+    volumes:
+      - 'shared_data_directory:/opt/app/data_directory'
+      - 'geowebcache_data:/data/geowebcache'
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+  db:
+    image: 'postgis/postgis:17-3.4'
+    volumes:
+      - 'db:/var/lib/postgresql/data'
+    environment:
+      POSTGRES_PASSWORD: osgeo
+      POSTGRES_USER: osgeo
+      POSTGRES_DB: osgeo
+  nginx:
+    image: 'nginx'
+    volumes:
+      - './html:/usr/share/nginx/html'
