@@ -162,7 +162,7 @@ services:
       POSTGRES_PASSWORD: osgeo
       POSTGRES_USER: osgeo
       POSTGRES_DB: osgeo
-  nginx:
+  web:
     image: 'nginx'
     volumes:
       - './web:/usr/share/nginx/html'
