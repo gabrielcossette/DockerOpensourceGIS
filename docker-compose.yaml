@@ -163,6 +163,10 @@ services:
       POSTGRES_USER: osgeo
       POSTGRES_DB: osgeo
   web:
-    image: 'nginx'
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM nginx
+        COPY ./web /usr/share/nginx/html
     volumes:
       - './web:/usr/share/nginx/html'
